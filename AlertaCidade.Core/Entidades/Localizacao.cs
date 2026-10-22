@@ -23,23 +23,25 @@ public class Localizacao
     {
         if (decimal.IsNegative(precisao))
             throw new CoreException($"A precisão informada ({precisao}) é inválida. O valor não pode ser negativo.");
-        
+
         Precisao = precisao;
     }
 
     private void ValidarLongitude(decimal longitude)
     {
         if (longitude is > 180 or -180)
-            throw new CoreException($"A latitude informada ({longitude}) é inválida. O valor deve estar entre -180 e 180 graus.");
-        
+            throw new CoreException(
+                $"A latitude informada ({longitude}) é inválida. O valor deve estar entre -180 e 180 graus.");
+
         Longitude = longitude;
     }
 
     private void ValidarLatitude(decimal latitude)
     {
         if (latitude is > 90 or < -90)
-            throw new CoreException($"A latitude informada ({latitude}) é inválida. O valor deve estar entre -90 e 90 graus.");
-        
+            throw new CoreException(
+                $"A latitude informada ({latitude}) é inválida. O valor deve estar entre -90 e 90 graus.");
+
         Latitude = latitude;
     }
 }
