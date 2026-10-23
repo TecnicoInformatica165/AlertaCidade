@@ -1,13 +1,20 @@
 using System.Runtime.CompilerServices;
+using AlertaCidade.Api;
+using AlertaCidade.Api.Dados;
 using AlertaCidade.Api.DTOs;
 using AlertaCidade.Core.Entidades;
 using AlertaCidade.Core.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+
+var stringConexao = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddMySql<ApiContexto>(stringConexao ,ServerVersion.AutoDetect(stringConexao));
 
 var app = builder.Build();
 
