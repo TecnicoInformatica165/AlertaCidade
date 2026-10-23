@@ -4,6 +4,8 @@ namespace AlertaCidade.Core.Entidades;
 
 public class CategoriaDenuncia
 {
+    public const int TamanhoMinimoCaracteresNome = 5;
+
     protected CategoriaDenuncia()
     {
     }
@@ -13,7 +15,6 @@ public class CategoriaDenuncia
         ValidarNome(nome);
     }
 
-    public const int TamanhoMinimoCaracteresNome = 5;
     public int Id { get; private set; }
     public string Nome { get; private set; } = string.Empty;
 
