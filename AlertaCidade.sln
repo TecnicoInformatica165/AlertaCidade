@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlertaCidade.Core", "AlertaCidade.Core\AlertaCidade.Core.csproj", "{4E5C2318-8091-4C7B-9871-6123F5CBB402}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlertaCidade.Api", "AlertaCidade.Api\AlertaCidade.Api.csproj", "{CF5BB7DE-724C-40D4-BA3F-432912CB48A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{4E5C2318-8091-4C7B-9871-6123F5CBB402}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E5C2318-8091-4C7B-9871-6123F5CBB402}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4E5C2318-8091-4C7B-9871-6123F5CBB402}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF5BB7DE-724C-40D4-BA3F-432912CB48A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF5BB7DE-724C-40D4-BA3F-432912CB48A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF5BB7DE-724C-40D4-BA3F-432912CB48A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF5BB7DE-724C-40D4-BA3F-432912CB48A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
