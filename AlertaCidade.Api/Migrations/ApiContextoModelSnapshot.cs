@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace AlertaCidade.Api.Migrations
 {
-    [DbContext(typeof(ApiContexto))]
+    [DbContext(typeof(DbContexto))]
     partial class ApiContextoModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
