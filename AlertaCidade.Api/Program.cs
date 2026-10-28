@@ -44,10 +44,9 @@ app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos us
     {
         var novoUsuario = new Usuario(requisicao.Nome, requisicao.Email, requisicao.Senha);
         await usuarioServicos.AdicionaAsync(novoUsuario);
-        return Results.Created(string.Empty, new
-        {
-            Usuario = requisicao
-        });
+        return Results.Created();
+        
+       
     }
     catch (CoreException ex)
     {
@@ -56,7 +55,28 @@ app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos us
     }
         
 });
+
+//rota de login
+app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServicos) =>
+{
+    try
+    {
+        var usuarioEncontrado = await usuarioServicos
+            .BuscarPorEmailAsync(body.Email);
+        
+        if (usuarioEncontrado.Senha != body.Senha) 
+        return Results.BadRequest("Usuario ou senha estão errados!");
+        return Results.Ok();
+    }
+    catch (UsuarioNaoEncontradoException ex)
+    {
+        return Results.NotFound(new { Mensagem = ex.Message });
+    }
+    catch
+    {
+        return Results.Problem("Ocorreu um erro desconhecido, tente novamente mais tarde.",
+            "Erro no servidor!", 500);
+    }
     
-
-
+});
 app.Run();
