@@ -1,5 +1,6 @@
 using AlertaCidade.Api.Dados;
 using AlertaCidade.Api.DTOs;
+using AlertaCidade.Api.Servico;
 using AlertaCidade.Core.Entidades;
 using AlertaCidade.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 var stringConexao = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddMySql<ApiContexto>(stringConexao, ServerVersion.AutoDetect(stringConexao));
+builder.Services.AddMySql<DbContexto>(stringConexao, ServerVersion.AutoDetect(stringConexao));
+
+// Cadastro de Servicos Customizados
+builder.Services.AddScoped<UsuarioServicos>();
 
 var app = builder.Build();
 
@@ -32,18 +36,17 @@ app.MapGet("/status", () =>
     });
 });
 
-app.MapPost("/usuario", (CadastroUsuarioDto requisicao) =>
+//Criação de usuário
+app.MapPost("/usuario", async (CadastroUsuarioDto body, UsuarioServicos usuarioServicos) =>
 {
     try
     {
 
 
-        var novoUsuario = new Usuario(requisicao.Nome, requisicao.Email, requisicao.Senha);
-        return Results.Created(string.Empty,
-            new
-            {
-                Usuario = requisicao
-            });
+        var novoUsuario = new Usuario(body.Nome, body.Email, body.Senha);
+        await usuarioServicos.AdicionaAsync(novoUsuario);
+        
+        return Results.Created();
 
     }
     
@@ -54,5 +57,31 @@ app.MapPost("/usuario", (CadastroUsuarioDto requisicao) =>
     
 });
 
+// Rota de login
+app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServicos) =>
+{
+    try
+    {
+        var usuarioEncontrado = await usuarioServicos.BuscarPorEmailAsync(body.Email);
+
+        if (usuarioEncontrado.Senha != body.Senha)
+            return Results.BadRequest(new 
+                {mensagem = "Usuario ou senha estão errados!" });
+
+        return Results.Ok();
+    }
+
+    catch (UsuarioNaoEncontradoException ex)
+    {
+        return Results.NotFound(new { message = ex.Message });
+    }
+    catch
+    {
+        return Results.Problem("Ocoreu um erro desconhecido, tente novamente mais tarde.", 
+            "Erro no servidor!", 500);
+    }
+    
+
+});
 app.Run();
 
