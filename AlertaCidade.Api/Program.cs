@@ -1,9 +1,12 @@
+using System.Text;
 using AlertaCidade.Api.Dados;
 using AlertaCidade.Api.DTOs;
 using AlertaCidade.Api.Servicos;
 using AlertaCidade.Core.Entidades;
 using AlertaCidade.Core.Exceptions;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +16,32 @@ var stringConexao = builder.Configuration.GetConnectionString("DefaultConnection
 builder.Services.AddMySql<DbContexto>(stringConexao, ServerVersion.AutoDetect(stringConexao));
 
 builder.Services.AddScoped<UsuarioServicos>();
+builder.Services.AddScoped<TokenServico>();
+
+// Configurações do JWT (lidas de CHAVE_JWT, EMISSOR_JWT e AUDIENCIA_JWT)
+var chaveJwt = builder.Configuration["CHAVE_JWT"]
+               ?? throw new InvalidOperationException("A configuração CHAVE_JWT não foi encontrada.");
+var emissorJwt = builder.Configuration["EMISSOR_JWT"];
+var audienciaJwt = builder.Configuration["AUDIENCIA_JWT"];
+
+// Ensina a API a validar o token que chega no cabeçalho "Authorization: Bearer ..."
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opcoes =>
+    {
+        opcoes.MapInboundClaims = true;
+        opcoes.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = emissorJwt,
+            ValidAudience = audienciaJwt,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(chaveJwt))
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -24,6 +53,9 @@ else
 {
     app.UseHttpsRedirection();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/status", () => Results.Ok(new { Estado = "Online" }));
 
@@ -51,22 +83,30 @@ app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos us
     }
 });
 
-// Login
-app.MapPost("/login", async (LoginUsuarioDto requisicao, UsuarioServicos usuarioServicos) =>
+// Login: agora devolve o token JWT
+app.MapPost("/login", async (
+    LoginUsuarioDto requisicao,
+    UsuarioServicos usuarioServicos,
+    TokenServico tokenServico) =>
 {
     var usuario = await usuarioServicos.AutenticarAsync(requisicao.Email, requisicao.Senha);
 
-    // A mensagem é a mesma para e-mail errado e senha errada (por segurança)
     if (usuario is null)
         return Results.Json(new { message = "E-mail ou senha inválidos!" }, statusCode: 401);
 
+    var token = tokenServico.GerarToken(usuario);
+
+    return Results.Ok(new { Token = token });
+});
+
+// Rota protegida: só abre com um token válido (serve para testar o JWT)
+app.MapGet("/perfil", (System.Security.Claims.ClaimsPrincipal usuarioLogado) =>
+{
     return Results.Ok(new
     {
-        Mensagem = "Login realizado com sucesso!",
-        usuario.Id,
-        usuario.Nome,
-        usuario.Email
+        Mensagem = "Token válido! Você está autenticado.",
+        Claims = usuarioLogado.Claims.Select(c => new { c.Type, c.Value })
     });
-});
+}).RequireAuthorization();
 
 app.Run();
