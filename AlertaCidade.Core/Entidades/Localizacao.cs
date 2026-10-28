@@ -29,9 +29,9 @@ public class Localizacao
 
     private void ValidarLongitude(decimal longitude)
     {
-        if (longitude is > 180 or -180)
+        if (longitude is > 180 or < -180)
             throw new CoreException(
-                $"A latitude informada ({longitude}) é inválida. O valor deve estar entre -180 e 180 graus.");
+                $"A longitude informada ({longitude}) é inválida. O valor deve estar entre -180 e 180 graus.");
 
         Longitude = longitude;
     }
