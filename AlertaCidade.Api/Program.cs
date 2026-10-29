@@ -6,6 +6,10 @@ using AlertaCidade.Api.DTOs;
 using AlertaCidade.Core.Entidades;
 using AlertaCidade.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +23,25 @@ builder.Services.AddMySql<DbContexto>(stringConexao ,ServerVersion.AutoDetect(st
 
 builder.Services.AddScoped<UsuarioServicos>();
 builder.Services.AddScoped<TokenServico>();
+var chave = Environment.GetEnvironmentVariable("CHAVE_JWT");
+var emissor = Environment.GetEnvironmentVariable("EMISSOR_JWT");
+var audiencia = Environment.GetEnvironmentVariable("AUDIENCIA_JWT");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opcoes =>
+    {
+        opcoes.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = emissor,
+            ValidAudience = audiencia,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(chave))
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -29,6 +52,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/status", () =>
 {
@@ -82,4 +108,12 @@ app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServic
             "Erro no servidor!", 500);
     }
 });
+app.MapGet("/perfil", (ClaimsPrincipal usuario) =>
+{
+    var id = usuario.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var email = usuario.FindFirst(ClaimTypes.Email)?.Value;
+    var nome = usuario.FindFirst(ClaimTypes.Name)?.Value;
+
+    return Results.Ok(new { id = id, email, Nome = nome });
+}).RequireAuthorization();
 app.Run();

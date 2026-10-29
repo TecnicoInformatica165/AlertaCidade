@@ -10,8 +10,9 @@ public class TokenServico
 {
     public string GerarToken(Usuario usuario)
     {
-        var chave = Environment.GetEnvironmentVariable("CHAVE_JWT");
-        var emissor = Environment.GetEnvironmentVariable("EMISSOR_JWT");
+        var chave     = Environment.GetEnvironmentVariable("CHAVE_JWT")
+                        ?? throw new Exception("Variável CHAVE_JWT não configurada");
+        var emissor   = Environment.GetEnvironmentVariable("EMISSOR_JWT");
         var audiencia = Environment.GetEnvironmentVariable("AUDIENCIA_JWT");
 
         var claims = new[]
