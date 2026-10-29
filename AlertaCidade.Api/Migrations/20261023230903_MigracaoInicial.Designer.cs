@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace AlertaCidade.Api.Migrations
 {
-    [DbContext(typeof(ApiContext))]
+    [DbContext(typeof(DbContexto))]
     [Migration("20261023230903_MigracaoInicial")]
     partial class MigracaoInicial
     {
