@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using AlertaCidade.Api.Dados;
 using AlertaCidade.Api.DTOs;
@@ -54,6 +55,7 @@ else
     app.UseHttpsRedirection();
 }
 
+// A ordem importa: primeiro descobre quem é o usuário, depois verifica a permissão
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -83,7 +85,7 @@ app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos us
     }
 });
 
-// Login: agora devolve o token JWT
+// Login: devolve o token JWT
 app.MapPost("/login", async (
     LoginUsuarioDto requisicao,
     UsuarioServicos usuarioServicos,
@@ -99,13 +101,20 @@ app.MapPost("/login", async (
     return Results.Ok(new { Token = token });
 });
 
-// Rota protegida: só abre com um token válido (serve para testar o JWT)
-app.MapGet("/perfil", (System.Security.Claims.ClaimsPrincipal usuarioLogado) =>
+// Rota protegida: só abre com um token válido
+app.MapGet("/perfil", (ClaimsPrincipal usuario) =>
 {
+    // Lê cada informação que foi colocada dentro do token no login
+    var id = usuario.FindFirstValue(ClaimTypes.NameIdentifier);
+    var email = usuario.FindFirstValue(ClaimTypes.Email);
+    var nome = usuario.FindFirstValue(ClaimTypes.Name);
+
     return Results.Ok(new
     {
-        Mensagem = "Token válido! Você está autenticado.",
-        Claims = usuarioLogado.Claims.Select(c => new { c.Type, c.Value })
+        Mensagem = $"Olá, {nome}! Você está autenticado.",
+        Id = id,
+        Nome = nome,
+        Email = email
     });
 }).RequireAuthorization();
 
