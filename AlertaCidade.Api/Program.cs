@@ -15,9 +15,11 @@ builder.Services.AddOpenApi();
 
 
 var stringConexao = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddMySql<DbContexto>(stringConexao, ServerVersion.AutoDetect(stringConexao));
+builder.Services.AddMySql<DbContexto>(stringConexao ,ServerVersion.AutoDetect(stringConexao));
 
 builder.Services.AddScoped<UsuarioServicos>();
+builder.Services.AddScoped<TokenServico>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -33,7 +35,9 @@ app.MapGet("/status", () =>
     return Results.Ok(new
     {
         Estado = "Online",
+        
     });
+
 });
 
 app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos usuarioServicos) =>
@@ -43,38 +47,39 @@ app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos us
         var novoUsuario = new Usuario(requisicao.Nome, requisicao.Email, requisicao.Senha);
         await usuarioServicos.AdicionaAsync(novoUsuario);
         return Results.Created();
+        
+       
     }
     catch (CoreException ex)
     {
         return Results.BadRequest(new { message = ex.Message });
+        
     }
+        
 });
 
-// Rota de login
-app.MapPost("/Login", handler: async (LoginUsuarioDTO body, UsuarioServicos usuarioServicos) =>
+//rota de login
+app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServicos, TokenServico tokenServico) =>
+{
+    try
     {
-        try
-        {
-            var usuarioEncontrado = await usuarioServicos
-                .BuscarPorEmailAsync(body.Email);
+        var usuarioEncontrado = await usuarioServicos
+            .BuscarPorEmailAsync(body.Email);
 
-            if (usuarioEncontrado.Senha != body.Senha)
+        if (usuarioEncontrado.Senha != body.Senha)
+            return Results.BadRequest("Usuario ou senha estão errados!");
 
-                return Results.BadRequest("Usuario ou senha estão errados!");
-
-            return Results.Ok();
-        }
-
-        catch (UsuarioNaoEncontradoException ex)
-        {
-            return Results.NotFound(new { Mensagem = ex.Message });
-        }
-        catch
-        {
-            return Results.Problem("Ocorreu um erro desconhecido, tente novamente mais tarde.",
-                "Erro no servidor! ", 500);
-        }
-    } );
-
-
+        var token = tokenServico.GerarToken(usuarioEncontrado);
+        return Results.Ok(new { Token = token });
+    }
+    catch (UsuarioNaoEncontradoException ex)
+    {
+        return Results.NotFound(new { Mensagem = ex.Message });
+    }
+    catch
+    {
+        return Results.Problem("Ocorreu um erro desconhecido, tente novamente mais tarde.",
+            "Erro no servidor!", 500);
+    }
+});
 app.Run();

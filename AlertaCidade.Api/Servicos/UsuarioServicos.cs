@@ -11,18 +11,14 @@ public class UsuarioServicos(DbContexto contexto)
         await contexto.SaveChangesAsync();
     }
 
-    //busca o usuário pelo email
-    // Busca o usuario pelo email
     public async Task<Usuario> BuscarPorEmailAsync(string email)
     {
-        //funciona como uma busca direta na tabela do banco de dados para encontrar um único registro que possua o e-mail informado.
-        var usuario = await contexto.Usuarios.FirstOrDefaultAsync(u => u.Email == email);
-        if (usuario == null)
-        {
-            throw new Exception("Erro no sistema: Usuário inexistente.");
-        }
+        var usuarioEncontrado = await contexto.Usuarios
+            .FirstOrDefaultAsync(usuario => usuario.Email == email);
+        
+        if (usuarioEncontrado is null)
+            throw new UsuarioNaoEncontradoException("O usuario não existe!");
 
-        // // Caso o usuario exista, retornar o usuario
-        return usuario;
+        return usuarioEncontrado;
     }
 }
