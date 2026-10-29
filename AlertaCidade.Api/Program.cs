@@ -1,5 +1,10 @@
+using System.Runtime.CompilerServices;
 using AlertaCidade.Api;
-using AlertaCidade.Api.Servicos;
+using AlertaCidade.Api.Dados;
+using AlertaCidade.Api.Dados.Servicos;
+using AlertaCidade.Api.Dto;
+using AlertaCidade.Api.DTOs;
+using AlertaCidade.Api.Servico;
 using AlertaCidade.Core.Entidades;
 using AlertaCidade.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -10,16 +15,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-var stringConexao = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddMySql<DbContexto>(stringConexao, ServerVersion.AutoDetect(stringConexao));
 
-//Cadastro de Servicos Custumizados
+var stringConexao = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddMySql<DbContexto>(stringConexao ,ServerVersion.AutoDetect(stringConexao));
+
 builder.Services.AddScoped<UsuarioServicos>();
+builder.Services.AddScoped<TokenServico>();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment()) app.MapOpenApi();
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+}
 
 app.UseHttpsRedirection();
 
@@ -27,40 +36,43 @@ app.MapGet("/status", () =>
 {
     return Results.Ok(new
     {
-        status = "Online",
-       
+        Estado = "Online",
+        
     });
+
 });
 
-//Criacao de Usuario
-app.MapPost("/usuario", async (CadastroUsuarioDto body, UsuarioServicos usuarioServicos) =>
+app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos usuarioServicos) =>
 {
     try
     {
-        var novoUsuario = new Usuario(body.Nome, body.Email, body.Senha);
+        var novoUsuario = new Usuario(requisicao.Nome, requisicao.Email, requisicao.Senha);
         await usuarioServicos.AdicionaAsync(novoUsuario);
-
         return Results.Created();
+        
+       
     }
     catch (CoreException ex)
     {
-        return Results.BadRequest(new { mensagem = ex.Message });
+        return Results.BadRequest(new { message = ex.Message });
+        
     }
+        
 });
-//Rota de Login
-app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServicos) =>
+
+//rota de login
+app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServicos, TokenServico tokenServico) =>
 {
     try
     {
-        var usuarioEncontrado = await usuarioServicos.BuscarPorEmailAsync(body.Email);
+        var usuarioEncontrado = await usuarioServicos
+            .BuscarPorEmailAsync(body.Email);
 
         if (usuarioEncontrado.Senha != body.Senha)
-            return Results.BadRequest( new
-        {
-            mensagem = "Usuario ou senha incorretos"
-        });
+            return Results.BadRequest("Usuario ou senha estão errados!");
 
-        return Results.Ok();
+        var token = tokenServico.GerarToken(usuarioEncontrado);
+        return Results.Ok(new { Token = token });
     }
     catch (UsuarioNaoEncontradoException ex)
     {
@@ -68,10 +80,8 @@ app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServic
     }
     catch
     {
-        return Results.Problem("Ocorreu um erro desconhecido, tente novamente mais tarde.", "Erro no servidor!", 500);
-        
+        return Results.Problem("Ocorreu um erro desconhecido, tente novamente mais tarde.",
+            "Erro no servidor!", 500);
     }
 });
-
-
 app.Run();

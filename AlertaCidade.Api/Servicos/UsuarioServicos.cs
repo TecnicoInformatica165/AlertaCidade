@@ -1,8 +1,9 @@
-﻿using AlertaCidade.Core.Entidades;
+﻿using AlertaCidade.Api.Dados;
+using AlertaCidade.Core.Entidades;
 using AlertaCidade.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
-namespace AlertaCidade.Api.Servicos;
+namespace AlertaCidade.Api.Servico;
 
 public class UsuarioServicos(DbContexto contexto)
 {
@@ -18,10 +19,7 @@ public class UsuarioServicos(DbContexto contexto)
     {
         var usuarioEncontrado = await contexto.Usuarios.FirstOrDefaultAsync(usuario => usuario.Email == email);
         
-        if (usuarioEncontrado is null)
-        {
-            throw new UsuarioNaoEncontradoException("O usuario não existe!");
-        }
+        if (usuarioEncontrado is null) throw new UsuarioNaoEncontradoException("O usuario não existe!");
         
         return usuarioEncontrado;
 

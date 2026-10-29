@@ -1,7 +1,7 @@
 ﻿using AlertaCidade.Core.Entidades;
 using Microsoft.EntityFrameworkCore;
 
-namespace AlertaCidade.Api;
+namespace AlertaCidade.Api.Dados;
 
 public class DbContexto(DbContextOptions<DbContexto> opcoesContexto) : DbContext(opcoesContexto)
 {
