@@ -18,6 +18,8 @@ var stringConexao = builder.Configuration.GetConnectionString("DefaultConnection
 builder.Services.AddMySql<DbContexto>(stringConexao ,ServerVersion.AutoDetect(stringConexao));
 
 builder.Services.AddScoped<UsuarioServicos>();
+builder.Services.AddScoped<TokenServico>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -57,16 +59,18 @@ app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos us
 });
 
 //rota de login
-app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServicos) =>
+app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServicos, TokenServico tokenServico) =>
 {
     try
     {
         var usuarioEncontrado = await usuarioServicos
             .BuscarPorEmailAsync(body.Email);
-        
-        if (usuarioEncontrado.Senha != body.Senha) 
-        return Results.BadRequest("Usuario ou senha estão errados!");
-        return Results.Ok();
+
+        if (usuarioEncontrado.Senha != body.Senha)
+            return Results.BadRequest("Usuario ou senha estão errados!");
+
+        var token = tokenServico.GerarToken(usuarioEncontrado);
+        return Results.Ok(new { Token = token });
     }
     catch (UsuarioNaoEncontradoException ex)
     {
@@ -77,6 +81,5 @@ app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServic
         return Results.Problem("Ocorreu um erro desconhecido, tente novamente mais tarde.",
             "Erro no servidor!", 500);
     }
-    
 });
 app.Run();
