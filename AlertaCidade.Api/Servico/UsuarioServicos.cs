@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AlertaCidade.Api.Servico;
 
-public class UsuarioServicos (DbContexto contexto)
+public class UsuarioServicos(DbContexto contexto)
 {
     public async Task AdicionaAsync(Usuario modelo)
     {
