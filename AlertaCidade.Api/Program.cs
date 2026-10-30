@@ -1,4 +1,6 @@
 using System.Runtime.CompilerServices;
+using System.Security.Claims;
+using System.Text;
 using AlertaCidade.Api;
 using AlertaCidade.Api.Dados;
 using AlertaCidade.Api.Dados.Servicos;
@@ -6,7 +8,9 @@ using AlertaCidade.Api.DTOs;
 using AlertaCidade.Api.Servico;
 using AlertaCidade.Core.Entidades;
 using AlertaCidade.Core.Exceptions;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +24,22 @@ builder.Services.AddMySql<DbContexto>(stringConexao ,ServerVersion.AutoDetect(st
 
 builder.Services.AddScoped<UsuarioServicos>();
 builder.Services.AddScoped<TokenServico>();
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = TokenServico.Emissor,
+            ValidAudience = TokenServico.Audiencia,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TokenServico.Chave))
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -83,5 +103,17 @@ app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServic
             "Erro no servidor!", 500);
     }
 });
+
+// rota protegida
+app.MapGet("/perfil", (ClaimsPrincipal usuario) =>
+    {
+        var id    = usuario.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var email = usuario.FindFirst(ClaimTypes.Email)?.Value;
+        var nome  = usuario.FindFirst(ClaimTypes.Name)?.Value;
+
+        return Results.Ok(new { Id = id,Email = email,Nome = nome });
+    })
+    .RequireAuthorization();
+
 app.Run();
 
