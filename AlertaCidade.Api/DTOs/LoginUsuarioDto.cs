@@ -1,4 +1,4 @@
-﻿namespace AlertaCidade.Api.Dto;
+﻿namespace AlertaCidade.Api.DTOs;
 
 public class LoginUsuarioDto
 {

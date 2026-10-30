@@ -8,12 +8,12 @@ namespace AlertaCidade.Api.Dados.Servicos;
 
 public class TokenServicos
 {
+    public static string Chave = Environment.GetEnvironmentVariable("CHAVE_JWT") ?? "";
+    public static string Emissor = Environment.GetEnvironmentVariable("EMISSOR_JWT") ?? "";
+    public static string Audiencia = Environment.GetEnvironmentVariable("AUDIENCIA_JWT") ?? "";
+
     public string GerarToken(Usuario usuario)
     {
-        var chave = Environment.GetEnvironmentVariable("CHAVE_JWT");
-        var emissor = Environment.GetEnvironmentVariable("EMISSOR_JWT");
-        var audiencia = Environment.GetEnvironmentVariable("AUDIENCIA_JWT");
-
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
@@ -21,13 +21,13 @@ public class TokenServicos
             new Claim(ClaimTypes.Name, usuario.Nome)
         };
 
-        var chaveSegura = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(chave));
+        var chaveSegura = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Chave));
         var credenciais = new SigningCredentials(chaveSegura, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: emissor,
-            audience: audiencia,
-            claims: claims,
+            Emissor,
+            Audiencia,
+            claims,
             expires: DateTime.UtcNow.AddHours(2),
             signingCredentials: credenciais
         );
