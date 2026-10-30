@@ -1,13 +1,16 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 using AlertaCidade.Api;
 using AlertaCidade.Api.Dados;
 using AlertaCidade.Api.Dados.Servicos;
 using AlertaCidade.Api.DTOs;
-using AlertaCidade.Api.Servicos;
 using AlertaCidade.Core.Entidades;
 using AlertaCidade.Core.Exceptions;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,26 +24,23 @@ builder.Services.AddMySql<DbContexto>(stringConexao ,ServerVersion.AutoDetect(st
 
 builder.Services.AddScoped<UsuarioServicos>();
 builder.Services.AddScoped<TokenServico>();
-
-builder.Services.AddAuthentication("Bearer").AddJwtBearer(options =>
-{
-    var jwtKey = Environment.GetEnvironmentVariable("CHAVE_JWT") ??
-                 throw new InvalidOperationException("A chave JWT não foi configurada!");
-
-    var key = Encoding.UTF8.GetBytes(jwtKey);
-
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
-    };
-});
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = TokenServico.Emissor,
+            ValidAudience = TokenServico.Audiencia,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TokenServico.Chave))
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -51,6 +51,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/status", () =>
 {
@@ -69,6 +71,8 @@ app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos us
         var novoUsuario = new Usuario(requisicao.Nome, requisicao.Email, requisicao.Senha);
         await usuarioServicos.AdicionaAsync(novoUsuario);
         return Results.Created();
+        
+       
     }
     catch (CoreException ex)
     {
@@ -77,7 +81,6 @@ app.MapPost("/usuario", async (CadastroUsuarioDto requisicao, UsuarioServicos us
     }
         
 });
-
 //rota de login
 app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServicos, TokenServico tokenServico) =>
 {
@@ -101,5 +104,17 @@ app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServic
         return Results.Problem("Ocorreu um erro desconhecido, tente novamente mais tarde.",
             "Erro no servidor!", 500);
     }
-});
+});   // <- o /login termina AQUI
+
+// rota protegida
+app.MapGet("/perfil", (ClaimsPrincipal usuario) =>
+    {
+        var id    = usuario.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var email = usuario.FindFirst(ClaimTypes.Email)?.Value;
+        var nome  = usuario.FindFirst(ClaimTypes.Name)?.Value;
+
+        return Results.Ok(new { Id = id,Email = email,Nome = nome });
+    })
+    .RequireAuthorization();
+
 app.Run();
