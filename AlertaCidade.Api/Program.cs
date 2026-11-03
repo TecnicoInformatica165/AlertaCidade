@@ -18,6 +18,7 @@ builder.Services.AddMySql<DbContexto>(stringConexao, ServerVersion.AutoDetect(st
 
 builder.Services.AddScoped<UsuarioServicos>();
 builder.Services.AddScoped<TokenServico>();
+builder.Services.AddScoped<DenunciaServico>();
 
 // Configurações do JWT (lidas de CHAVE_JWT, EMISSOR_JWT e AUDIENCIA_JWT)
 var chaveJwt = builder.Configuration["CHAVE_JWT"]
@@ -104,7 +105,6 @@ app.MapPost("/login", async (
 // Rota protegida: só abre com um token válido
 app.MapGet("/perfil", (ClaimsPrincipal usuario) =>
 {
-    // Lê cada informação que foi colocada dentro do token no login
     var id = usuario.FindFirstValue(ClaimTypes.NameIdentifier);
     var email = usuario.FindFirstValue(ClaimTypes.Email);
     var nome = usuario.FindFirstValue(ClaimTypes.Name);
@@ -116,6 +116,45 @@ app.MapGet("/perfil", (ClaimsPrincipal usuario) =>
         Nome = nome,
         Email = email
     });
+}).RequireAuthorization();
+
+// Cadastro de denúncia (rota protegida)
+app.MapPost("/denuncias", async (
+    CadastrarDenunciaDto body,
+    DenunciaServico denunciaServico,
+    DbContexto contexto,
+    ClaimsPrincipal usuario) =>
+{
+    try
+    {
+        // Se o cliente não mandou a localização, avisa em vez de dar erro 500
+        if (body.Localizacao is null)
+            return Results.BadRequest(new { Mensagem = "A localização da denúncia é obrigatória." });
+
+        // Busca a categoria no banco pelo Id informado
+        var categoriaEncontrada = await contexto.CategoriaDenuncias.FindAsync(body.CategoriaId);
+        if (categoriaEncontrada is null)
+            return Results.NotFound(new { Mensagem = "Categoria não encontrada." });
+
+        var localizacao = new Localizacao(
+            body.Localizacao.Latitude,
+            body.Localizacao.Longitude,
+            body.Localizacao.Precisao);
+
+        var novaDenuncia = new Denuncia(body.Titulo, body.Descricao, localizacao, categoriaEncontrada);
+
+        await denunciaServico.AdicionaAsync(novaDenuncia);
+
+        return Results.Created($"/denuncias/{novaDenuncia.Id}", new
+        {
+            Mensagem = "Denúncia cadastrada com sucesso!",
+            novaDenuncia.Id
+        });
+    }
+    catch (CoreException ex)
+    {
+        return Results.BadRequest(new { Mensagem = ex.Message });
+    }
 }).RequireAuthorization();
 
 app.Run();
