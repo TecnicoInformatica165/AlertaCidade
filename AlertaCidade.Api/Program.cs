@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using AlertaCidade.Api.Servicos;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,8 +22,8 @@ builder.Services.AddOpenApi();
 
 var stringConexao = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddMySql<DbContexto>(stringConexao ,ServerVersion.AutoDetect(stringConexao));
-
 builder.Services.AddScoped<UsuarioServicos>();
+builder.Services.AddScoped<DenunciaServico>();   // <- adicione
 builder.Services.AddScoped<TokenServico>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -107,13 +108,51 @@ app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServic
 });   // <- o /login termina AQUI
 
 // rota protegida
+// rota protegida
 app.MapGet("/perfil", (ClaimsPrincipal usuario) =>
     {
         var id    = usuario.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var email = usuario.FindFirst(ClaimTypes.Email)?.Value;
         var nome  = usuario.FindFirst(ClaimTypes.Name)?.Value;
 
-        return Results.Ok(new { Id = id,Email = email,Nome = nome });
+        return Results.Ok(new { Id = id, Email = email, Nome = nome });
+    })
+    .RequireAuthorization();
+
+// rota protegida de denúncias
+app.MapPost("/denuncias", async (
+        CadastrarDenunciaDto body,
+        DenunciaServico denunciaServico,
+        DbContexto contexto,
+        ClaimsPrincipal usuario) =>
+    {
+        var categoriaEncontrada = await contexto.CategoriaDenuncias
+            .FirstOrDefaultAsync(c => c.Id == body.CategoriaId);
+
+        if (categoriaEncontrada is null)
+            return Results.NotFound(new { Mensagem = "Categoria não encontrada." });
+
+        try
+        {
+            var localizacao = new Localizacao(
+                body.Localizacao.Latitude,
+                body.Localizacao.Longitude,
+                body.Localizacao.Precisao);
+
+            var novaDenuncia = new Denuncia(
+                body.Titulo,
+                body.Descricao,
+                localizacao,
+                categoriaEncontrada);
+
+            await denunciaServico.AdicionaAsync(novaDenuncia);
+
+            return Results.Created($"/denuncias/{novaDenuncia.Id}", new { novaDenuncia.Id });
+        }
+        catch (CoreException ex)
+        {
+            return Results.BadRequest(new { Mensagem = ex.Message });
+        }
     })
     .RequireAuthorization();
 
