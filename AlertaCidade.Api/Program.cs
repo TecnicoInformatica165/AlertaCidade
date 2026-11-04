@@ -23,6 +23,7 @@ builder.Services.AddMySql<DbContexto>(stringConexao ,ServerVersion.AutoDetect(st
 
 builder.Services.AddScoped<UsuarioServicos>();
 builder.Services.AddScoped<TokenServico>();
+builder.Services.AddScoped<DenunciaServico>();
 var chave = Environment.GetEnvironmentVariable("CHAVE_JWT");
 var emissor = Environment.GetEnvironmentVariable("EMISSOR_JWT");
 var audiencia = Environment.GetEnvironmentVariable("AUDIENCIA_JWT");
@@ -103,8 +104,9 @@ app.MapPost("/login", async (LoginUsuarioDto body, UsuarioServicos usuarioServic
     {
         return Results.NotFound(new { Mensagem = ex.Message });
     }
-    catch
+    catch (Exception ex)
     {
+        Console.WriteLine(ex.ToString());
         return Results.Problem("Ocorreu um erro desconhecido, tente novamente mais tarde.",
             "Erro no servidor!", 500);
     }
@@ -116,5 +118,63 @@ app.MapGet("/perfil", (ClaimsPrincipal usuario) =>
     var nome = usuario.FindFirst(ClaimTypes.Name)?.Value;
 
     return Results.Ok(new { Id = id, Email = email, Nome = nome });
+}).RequireAuthorization();
+app.MapPost("/denuncias", async (
+    CadastrarDenunciaDto body,
+    DenunciaServico denunciaServico,
+    DbContexto contexto,
+    ClaimsPrincipal usuario) =>
+{
+    // 1. Procura a categoria no banco
+    var categoriaEncontrada = await contexto.CategoriaDenuncias
+        .FirstOrDefaultAsync(c => c.Id == body.CategoriaId);
+
+    if (categoriaEncontrada == null)
+        return Results.NotFound(new { Mensagem = "Categoria não encontrada." });
+
+    try
+    {
+        // 2. Cria a localização com os dados do DTO
+        var localizacao = new Localizacao(
+            body.Localizacao.Latitude,
+            body.Localizacao.Longitude,
+            body.Localizacao.Precisao);
+
+        // 3. Cria a denúncia
+        var novaDenuncia = new Denuncia(
+            body.Titulo,
+            body.Descricao,
+            localizacao,
+            categoriaEncontrada);
+
+        // 4. Salva no banco
+        await denunciaServico.AdicionaAsync(novaDenuncia);
+
+        return Results.Created();
+    }
+    catch (CoreException ex)
+    {
+        return Results.BadRequest(new { Mensagem = ex.Message });
+    }
+  
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.ToString(), "Erro no servidor!", 500);
+    }
+}).RequireAuthorization();
+app.MapPost("/categorias", async (string nome, DenunciaServico denunciaServico) =>
+{
+    try
+    {
+        var novaCategoria = new CategoriaDenuncia(nome);
+
+        await denunciaServico.AdicionaCategoriaAsync(novaCategoria);
+
+        return Results.Created($"/categorias/{novaCategoria.Id}", new { novaCategoria.Id, novaCategoria.Nome });
+    }
+    catch (CoreException ex)
+    {
+        return Results.BadRequest(new { Mensagem = ex.Message });
+    }
 }).RequireAuthorization();
 app.Run();
